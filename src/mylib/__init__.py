@@ -27,6 +27,9 @@ from mylib.valuation_am import valuation_am
 from mylib.derivates_pos import derivates_pos
 from mylib.derivatives_portfolio import derivatives_portfolio
 
+#Optimisers
+from mylib.optimisers import *
+
 #plotting
 from mylib.plot_option import plot_option_stats
 

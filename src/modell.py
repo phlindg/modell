@@ -132,7 +132,7 @@ def calc_model_values(p0):
     return model_values
 
 def mean_squared_error(p0):
-    global i
+    i = 0
     model_values = np.array(list(calc_model_values(p0).values()))
     
     market_values = option_selection["CALL VALUE"].values
@@ -145,7 +145,12 @@ def mean_squared_error(p0):
     i+=1
     return MSE
 
-
+def myopt(mse, ranges):
+    opt_global = spo.brute(mse, ranges,finish = None)
+    print("OPT GLOBAL ", opt_global)
+    opt_local = spo.fmin(mse, opt_global, xtol = 0.001, ftol = 0.0001,
+        maxiter = 1000, maxfun = 1000)
+    return opt_local
 i = 0
 optimera1 = False
 optimera2 = False
@@ -166,7 +171,7 @@ if optimera2:
                   maxiter = 10000, maxfun = 1000)
 hmm = (21.8530443006, -0.0443875543192, 0.00366927778959, 0.00873728220265)
 option_selection.loc[:,"MODEL"] = np.array(list(calc_model_values(hmm).values()))
-option_selection.loc[:,"ERRORS"] = option_selection["MODEL"] - option_selection["CALL VALUE"]
+option_selection.loc[:,"ERRORS"] = option_selection.loc[:,"MODEL"] - option_selection.loc[:,"CALL VALUE"]
 print(option_selection[["MODEL", "CALL VALUE", "ERRORS"]])
 
 me_msft = market_env("me_msft", pricing_date)

@@ -37,7 +37,7 @@ class simulation_class:
                 self.rn_set = mar_env.get_list("rn_set")[self.name]
                 self.random_numbers = mar_env.get_list("random_numbers")
         except:
-            print ("Error getting stuff for enven")
+            print ("Error getting stuff for enven SIM")
     def generate_time_grid(self):
         start = self.pricing_date
         end = self.final_date
