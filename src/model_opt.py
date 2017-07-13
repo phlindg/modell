@@ -114,9 +114,9 @@ class OModel_JD:
 		return MSE
 	def fit(self,ranges, already_known = None):
 		if already_known == None:
-			#opt_global = spo.brute(self.mean_squared_error,
-									#ranges,
-									#finish = None)
+			opt_global = spo.brute(self.mean_squared_error,
+									ranges,
+									finish = None)
 			opt_global = (21.12, -0.06124, 0.0034168, 0.008175)
 			opt_local = spo.fmin(self.mean_squared_error, 
 		  							opt_global,
