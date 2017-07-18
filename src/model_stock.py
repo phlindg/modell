@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import datetime as dt
 import scipy.optimize as spo
+import scipy.stats as sps
 import random
 
 #1. Get and modify data
@@ -11,14 +12,17 @@ msft = pd.read_csv("data/msft.csv")
 aapl = pd.read_csv("data/aapl.csv")
 i=0
 class SModel:
-	def __init__(self, stock, start, end,model_end, model_choice):
+	def __init__(self, stock, start, end,model_start,model_end,num_paths, model_choice):
 		
 		self.start = start
 		self.end = end
+		self.model_start = model_start
 		self.model_end = model_end
+
+		self.num_paths = num_paths
 		self.model_choice = model_choice
-		stock = stock[(stock["date"] > start)
-						& (stock["date"] < end)]
+		stock = stock[(stock["date"] >= start)
+						& (stock["date"] <= end)]
 
 		stock.loc[:,"date"] = pd.to_datetime(stock.loc[:,"date"])
 		cols = ["DATE", "STOCK"]
@@ -26,9 +30,9 @@ class SModel:
 		self.stock = stock
 
 	def create_market_env(self,name, vol,lamb=None, mu=None, delt=None):
-		self.pricing_date = dt.datetime.strptime(self.end, "%Y-%m-%d")
+		self.pricing_date = dt.datetime.strptime(self.model_start, "%Y-%m-%d")
 		final_date = dt.datetime.strptime(self.model_end, "%Y-%m-%d")
-		paths = 10000
+		paths = self.num_paths
 		me_stock = market_env(name, self.pricing_date)
 		initial_value = self.stock.iloc[-1]["STOCK"]
 
@@ -38,7 +42,7 @@ class SModel:
 		me_stock.add_constant("currency", "USD")
 		me_stock.add_constant("frequency", "B")
 		me_stock.add_constant("paths", paths)
-		csr = constant_short_rate("csr", 0.01)
+		csr = constant_short_rate("csr", 0.05)
 		me_stock.add_curve("discount_curve", csr)
 		if self.model_choice == "JD":
 			me_stock.add_constant("lambda", lamb)
@@ -55,8 +59,8 @@ class SModel:
 		self.me_stock = me_stock
 
 		self.paths = self.stocks_model.get_instrument_values(fixed_seed = True)
-		self.stocks_model.generate_time_grid()
 		
+		self.stocks_model.generate_time_grid()
 		
 	def calc_model_values(self,p0):
 		i = 0
@@ -70,10 +74,11 @@ class SModel:
 		self.paths = self.stocks_model.get_instrument_values(fixed_seed = True)
 		model_values = {}
 
-		for path in self.paths:
+		for path in self.paths[0,:]:
 			
 			model_values["path_"+str(i)] = path
 			i+=1
+		
 		return model_values
 	def mean_squared_error(self,p0):
 		global i
@@ -110,20 +115,20 @@ class SModel:
 			self.p0 = opt_local
 		else:
 			self.p0 = already_known
-		#self.calc_model_values(self.p0)
+		print("P0: ", self.p0)
+		self.calc_model_values(self.p0)
 	def check_prob(self, gain):
 		last_val = self.stock["STOCK"].values[-1]
 		last_val_model = last_val + gain
 		test = []
 		
-		for path in self.paths:
-			print(path[0], last_val_model)
-			if path[-1] > last_val_model:
-				test.append(1)
-			else:
-				test.append(0)
-		 
+		i = 0
+
+		for val in self.paths[-1, :]:
+			test.append(val > last_val_model)
+		
 		test = np.array(test)
+		print("NUM OF TESTS: ", len(test))
 		return np.sum(test)/len(test)
 	def check(self):
 		hmm = {}
@@ -133,24 +138,31 @@ class SModel:
 		#print(hmm["ERROR"])
 	def calc_returns(self):
 		prices = self.stock["STOCK"]
-		return prices.pct_change(1)
-	def correla(self):
-		k = 0
-		corrs=[]
-		array_stock = np.array(self.stock.as_matrix()[:,1])
-		while k < len(array_stock)-1:
+		return prices.pct_change(1).dropna()
+	def calc_model_returns(self, path):
+		return path.pct_change(1).dropna()
 
-			path = np.array(self.paths[k])
-			testpd = pd.DataFrame({"PATH":path,
-								"STOCK": self.stock.as_matrix()[:,1]})
-			corr = testpd["PATH"].astype("float64").corr(testpd["STOCK"].astype("float64"))
-			corrs.append(corr)
-			k+=1
-		self.max_index = corrs.index(max(corrs))
-		print(max(corrs))
-		print(self.max_index) 
-		#print(testpd.astype("float64").corr())
-		#print(testpd["PATH"].astype("float64").corr(testpd["STOCK"].astype("float64")))
+	def correla(self):
+		"""
+		HÄR GÖR VI ETT CHI2-test!! WOOW
+		"""
+		i = 0
+		test = {}
+		s = self.stock["STOCK"].values
+		dat = self.stock["DATE"].values
+		print(self.stock["DATE"])
+		print(self.stocks_model.time_grid)
+		last = len(self.paths[2,:])
+		while i < 4:
+
+			path = self.paths[:,i]
+			print(path)
+			print(s)
+			chi2 = sps.chisquare(f_obs = path, f_exp = s)
+			print(chi2)
+			
+			break
+
 	def plottis(self):
 		x = random.randrange(20)
 		x = round(x)
@@ -160,8 +172,81 @@ class SModel:
 		plt.grid()
 		plt.legend(["stock", "gbm"])
 		plt.show()
-	def strategy(self):
+	def plot_stats(self, bins):
+		
+		plt.hist(self.paths[-1,:], bins = bins)
+		plt.show()
+	def buy(self):
 		pass
+	def short(self):
+		pass
+	def hold(self):
+		pass
+
+	def bollinger(self, factor,tol):
+		s = self.stock["STOCK"]
+		dat = self.stock["DATE"]
+		rmean = pd.rolling_mean(s, window = 30, center = True)
+		bol_up = rmean * (1+factor)
+		bol_down = rmean * (1-factor)
+		signals = []
+		i = 0
+		short = False
+		while i < len(s):
+
+			if s.values[i] > bol_up.values[i]:
+				if short: 
+					signals.append(0)
+				else:
+					signals.append(-1)
+				short = True
+			elif s.values[i] < bol_down.values[i]:
+				if short:
+					signals.append(1)
+				else:
+					signals.append(0)
+				short = False
+			else:
+				signals.append(0)
+			i += 1
+		signals = pd.DataFrame(signals, columns = ["SIGNAL"],index = dat)
+		#signals.columns = ["SIGNAL", "DATE"]
+		strat = []
+		i = 0
+		signs = signals["SIGNAL"].values
+		short = False
+		while i < len(signs):
+			val = s.values[i] - s.values[i-1]
+			if i == 0:
+				strat.append(s.values[i])
+			elif signs[i] == 1:
+				strat.append(strat[i-1]+val)
+				short = False
+			elif signs[i] == -1:
+				strat.append(strat[i-1]-val)
+				short = True
+			elif signs[i] == 0:
+				if short == False:
+					strat.append(strat[i-1]+val)
+				if short == True:
+					strat.append(strat[i-1]-val)
+			i+=1
+		
+		strat = pd.DataFrame(strat)
+
+		
+
+
+		print(self.calc_returns().cumsum().values[-1], " STOCK")
+		print(self.calc_model_returns(strat).cumsum().values[-1], " STRAT")
+
+		plt.plot(strat)
+		plt.plot(s.values)
+		plt.plot(rmean.values)
+		plt.plot(bol_up.values)
+		plt.plot(bol_down.values)
+		plt.legend(["strat", "stock", "mean", "bol_up", "bol_down"])
+		plt.show()
 
 
 

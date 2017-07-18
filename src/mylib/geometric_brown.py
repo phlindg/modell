@@ -53,7 +53,7 @@ class geometric_brownian_motion(simulation_class):
             #diff between two dates as year fraction
             paths[t] = paths[t-1]*np.exp((short_rate-0.5*self.volatility**2)*dt+self.volatility*np.sqrt(dt)*ran)
         self.instrument_values = paths
-        
+        print(len(paths), " AWDAWDAWD")
             
             
             

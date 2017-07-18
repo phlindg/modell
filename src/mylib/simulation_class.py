@@ -48,6 +48,7 @@ class simulation_class:
             time_grid.insert(0,start)
         if end not in time_grid:
             time_grid.append(end)
+
         if len(self.special_dates)>0:
             time_grid.extend(self.special_dates)
             #delete duplicates

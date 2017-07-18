@@ -5,20 +5,25 @@ import matplotlib.pyplot as plt
 
 from model_stock import SModel
 
-
+#dx-analytics.com!!!!!!
+#https://gist.github.com/yhilpisch/648565d3d5d70663b7dc418db1b81676
 
 
 msft = pd.read_csv("data/msft.csv")
 aapl = pd.read_csv("data/aapl.csv")
 atvi = pd.read_csv("data/atvi.csv")
-start = "2016-01-01"
-end = "2017-01-01"
-model_end = "2017-05-01"
-stock = SModel(msft, start, end,model_end, "GBM")
+gm = pd.read_csv("data/gm.csv")
+
+start = "2014-01-01"
+end = "2017-06-01" # MASTE FIIXA DATUMEN
+model_start = start
+model_end = end #Ju mer tid det gar ju mer lognormal blir den.
+stock = SModel(gm, start, end,model_start,model_end,1000, "GBM")
 returns = stock.calc_returns().dropna()
 vol_ret = returns.std() * np.sqrt(252.)
+print("VOL: ", vol_ret)
 if stock.model_choice == "JD":
-	stock.create_market_env("me_stocks", 15.0, .1, 0.1, 0.1)
+	stock.create_market_env("me_stocks", 15.0, .1, 0.1, vol_ret)
 if stock.model_choice == "GBM":
 	stock.create_market_env("me_stocks", vol_ret)
 
@@ -29,9 +34,10 @@ ranges_jd = ((5.0, 15.0, 1.0),
 ranges_gbm = (0.0, 25.0, 1.0)
 already_known = (24.181197131, 0.0534761091876, 0.127646433484, 0.0120390604717)
 hmm = (9.8530443006, -0.00443875543192, 0.00366927778959, vol_ret)
+if stock.model_choice == "JD":
+	stock.fit(ranges_jd, hmm)
+if stock.model_choice == "GBM":
+	stock.fit(ranges_gbm,5.0)
 
+stock.bollinger(0.05, 2)
 
-
-print(stock.check_prob(2.0)*100, "% TO GO UP")
-
-stock.plottis()
