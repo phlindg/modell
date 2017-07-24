@@ -8,8 +8,7 @@ import scipy.stats as sps
 import random
 
 #1. Get and modify data
-msft = pd.read_csv("data/msft.csv")
-aapl = pd.read_csv("data/aapl.csv")
+
 i=0
 class SModel:
 	def __init__(self, stock, start, end,model_start,model_end,num_paths, model_choice):
@@ -21,15 +20,15 @@ class SModel:
 
 		self.num_paths = num_paths
 		self.model_choice = model_choice
-		stock = stock[(stock["date"] >= start)
-						& (stock["date"] <= end)]
+		stock = stock[(stock.index >= start)
+						& (stock.index <= end)]
 
-		stock.loc[:,"date"] = pd.to_datetime(stock.loc[:,"date"])
-		cols = ["DATE", "STOCK"]
+		stock.index = pd.to_datetime(stock.index)
+		cols = ["STOCK", "SIGNALS"]
 		stock.columns = cols
 		self.stock = stock
 
-	def create_market_env(self,name, vol,lamb=None, mu=None, delt=None):
+	def create_market_env(self,name, vol,dates,lamb=None, mu=None, delt=None):
 		self.pricing_date = dt.datetime.strptime(self.model_start, "%Y-%m-%d")
 		final_date = dt.datetime.strptime(self.model_end, "%Y-%m-%d")
 		paths = self.num_paths
@@ -58,9 +57,11 @@ class SModel:
 		self.stocks_model = stocks_model
 		self.me_stock = me_stock
 
+		if dates == "MODEL":
+			self.stocks_model.generate_time_grid()
+		if dates == "REAL":
+			self.stocks_model.time_grid = self.stock.index
 		self.paths = self.stocks_model.get_instrument_values(fixed_seed = True)
-		
-		self.stocks_model.generate_time_grid()
 		
 	def calc_model_values(self,p0):
 		i = 0
@@ -183,75 +184,7 @@ class SModel:
 	def hold(self):
 		pass
 
-	def bollinger(self, factor,tol):
-		s = self.stock["STOCK"]
-		dat = self.stock["DATE"]
-		rmean = pd.rolling_mean(s, window = 30, center = True)
-		bol_up = rmean * (1+factor)
-		bol_down = rmean * (1-factor)
-		signals = []
-		i = 0
-		short = False
-		while i < len(s):
-
-			if s.values[i] > bol_up.values[i]:
-				if short: 
-					signals.append(0)
-				else:
-					signals.append(-1)
-				short = True
-			elif s.values[i] < bol_down.values[i]:
-				if short:
-					signals.append(1)
-				else:
-					signals.append(0)
-				short = False
-			else:
-				signals.append(0)
-			i += 1
-		signals = pd.DataFrame(signals, columns = ["SIGNAL"],index = dat)
-		#signals.columns = ["SIGNAL", "DATE"]
-		strat = []
-		i = 0
-		signs = signals["SIGNAL"].values
-		short = False
-		while i < len(signs):
-			val = s.values[i] - s.values[i-1]
-			if i == 0:
-				strat.append(s.values[i])
-			elif signs[i] == 1:
-				strat.append(strat[i-1]+val)
-				short = False
-			elif signs[i] == -1:
-				strat.append(strat[i-1]-val)
-				short = True
-			elif signs[i] == 0:
-				if short == False:
-					strat.append(strat[i-1]+val)
-				if short == True:
-					strat.append(strat[i-1]-val)
-			i+=1
-		
-		strat = pd.DataFrame(strat)
-
-		
-
-
-		print(self.calc_returns().cumsum().values[-1], " STOCK")
-		print(self.calc_model_returns(strat).cumsum().values[-1], " STRAT")
-
-		plt.plot(strat)
-		plt.plot(s.values)
-		plt.plot(rmean.values)
-		plt.plot(bol_up.values)
-		plt.plot(bol_down.values)
-		plt.legend(["strat", "stock", "mean", "bol_up", "bol_down"])
-		plt.show()
-
-
-
-
-
+	
 
 
 

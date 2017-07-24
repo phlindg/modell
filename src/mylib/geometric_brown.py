@@ -42,6 +42,7 @@ class geometric_brownian_motion(simulation_class):
             rand = self.random_numbers
         #get short rate for drift of processes
         short_rate = self.discount_curve.short_rate
+        print(len(self.time_grid))
         for t in range(1,len(self.time_grid)):
             #select the right time slice from the relevant time sets
             if not self.correlated:
